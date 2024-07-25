@@ -8,7 +8,8 @@ class AuthMiddleware {
   static Middleware checkAuthentication() => (innerHandler) {
     return (request) {
       if (request.url != Uri.parse("auth/login") &&
-          request.url != Uri.parse("auth/registration")) {
+          request.url != Uri.parse("auth/registration")&&
+          request.url != Uri.parse("auth/send_otp")) {
         final token = _extractToken(request);
         if (token != null) {
           final verify = JWT.tryVerify(token, SecretKey(secreteKey));

@@ -1,1 +1,1 @@
-export 'generate_otp.dart';
+export 'otp_manager.dart';
