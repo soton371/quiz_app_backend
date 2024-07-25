@@ -6,6 +6,7 @@ import 'package:shelf/shelf.dart';
 
 import '../configs/configs.dart';
 import '../models/models.dart';
+import '../utilities/utilities.dart';
 
 class AuthHandler {
   final Connection connection;
@@ -55,6 +56,15 @@ class AuthHandler {
       final checkUsers = await connection.execute(
           Sql.named("SELECT * FROM users WHERE email=@email"),
           parameters: {"email": req.email});
+
+      // Generate and send OTP
+      final otp = generateOTP();
+      final sent = await sendOTP(req.email, otp);
+      if (!sent) {
+        return Response.internalServerError(
+          body:
+            responseModelToJson(ResponseModel(success: false, message: "Error sending OTP.", data: null)));
+      }
 
       if (checkUsers.isEmpty) {
         await connection.execute(
