@@ -57,6 +57,11 @@ class AuthHandler {
           Sql.named("SELECT * FROM users WHERE email=@email"),
           parameters: {"email": req.email});
 
+      if (checkUsers.isNotEmpty) {
+        return Response.ok(responseModelToJson(ResponseModel(
+            success: false, message: "User already exist.", data: null)));
+      }
+
       // Generate and send OTP
       final otp = generateOTP();
       final sent = await sendOTP(req.email, otp);
@@ -66,24 +71,19 @@ class AuthHandler {
             responseModelToJson(ResponseModel(success: false, message: "Error sending OTP.", data: null)));
       }
 
-      if (checkUsers.isEmpty) {
-        await connection.execute(
-            Sql.named(
-                "INSERT INTO users (full_name, email, password) VALUES (@full_name, @email, @password)"),
-            parameters: {
-              "full_name": req.fullName,
-              "email": req.email,
-              "password": _hashPassword(req.password)
-            });
+      /*await connection.execute(
+          Sql.named(
+              "INSERT INTO users (full_name, email, password) VALUES (@full_name, @email, @password)"),
+          parameters: {
+            "full_name": req.fullName,
+            "email": req.email,
+            "password": _hashPassword(req.password)
+          });*/
 
-        final responseData = ResponseModel(
+      final responseData = ResponseModel(
             success: true, message: "User created.", data: req.toJson());
         return Response.ok(responseModelToJson(responseData));
-      } else {
-        final responseData = ResponseModel(
-            success: false, message: "User already exist.", data: null);
-        return Response.ok(responseModelToJson(responseData));
-      }
+
     } catch (e) {
       throw Exception(e);
     }
