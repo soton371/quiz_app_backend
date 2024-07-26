@@ -159,10 +159,9 @@ class AuthHandler {
       if (checkEmailOtp.isEmpty) {
         await connection.execute(
             Sql.named(
-                "INSERT INTO email_otp (email, type, otp_code, otp_send_time, received_otp_count) VALUES (@email, @type, @otp_code, @otp_send_time, @received_otp_count)"),
+                "INSERT INTO email_otp (email, otp_code, otp_send_time, received_otp_count) VALUES (@email, @otp_code, @otp_send_time, @received_otp_count)"),
             parameters: {
               "email": req.email,
-              "type": req.type,
               "otp_code": _hashString(otp),
               "otp_send_time": DateTime.now().toString(),
               "received_otp_count": 1,
@@ -188,10 +187,9 @@ class AuthHandler {
 
         await connection.execute(
             Sql.named(
-                "UPDATE email_otp SET email=@email, type=@type, otp_code=@otp_code, otp_send_time=@otp_send_time, received_otp_count=@received_otp_count WHERE email=@email"),
+                "UPDATE email_otp SET email=@email, otp_code=@otp_code, otp_send_time=@otp_send_time, received_otp_count=@received_otp_count WHERE email=@email"),
             parameters: {
               "email": req.email,
-              "type": req.type,
               "otp_code": _hashString(otp),
               "otp_send_time": DateTime.now().toString(),
               "received_otp_count": receivedOtpCount,
