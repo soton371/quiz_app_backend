@@ -95,38 +95,36 @@ class AuthHandler {
   Future<Response> register(Request request) async {
     try {
       final req = userModelFromJson(await request.readAsString());
-      final checkUsers = await connection.execute(
-          Sql.named("SELECT * FROM users WHERE email=@email"),
-          parameters: {"email": req.email});
 
-      if (checkUsers.isNotEmpty) {
-        return Response.ok(responseModelToJson(ResponseModel(
-            success: false, message: "User already exist.", data: null)));
-      }
+      final matchOtpResponse = await matchOtp(email: req.email, otp: req.otp.toString());
+      final responseModel = responseModelFromJson(await matchOtpResponse.readAsString());
 
-      // Generate and send OTP
-      final otp = generateOTP();
-      final sent = await sendOTPSMTP(req.email, otp);
-      if (!sent) {
-        return Response.internalServerError(
-            body: responseModelToJson(ResponseModel(
-                success: false, message: "Error sending OTP.", data: null)));
-      }
-
-      /*await connection.execute(
+      if(responseModel.success){
+        await connection.execute(
           Sql.named(
               "INSERT INTO users (full_name, email, password) VALUES (@full_name, @email, @password)"),
           parameters: {
             "full_name": req.fullName,
             "email": req.email,
-            "password": _hashPassword(req.password)
-          });*/
+            "password": _hashString(req.password)
+          });
 
-      final responseData = ResponseModel(
-          success: true, message: "User created.", data: req.toJson());
-      return Response.ok(responseModelToJson(responseData));
+        Map<String, dynamic> data = {...req.toJson()};
+        data.remove('password');
+
+        final responseData = ResponseModel(
+            success: true, message: "User registration has been successful.", data: data);
+        return Response.ok(responseModelToJson(responseData));
+      }else{
+        return Response.ok(responseModelToJson(responseModel));
+      }
+
     } catch (e) {
-      throw Exception(e);
+      logger.e("register e: $e");
+      return Response.internalServerError(
+        body:
+          responseModelToJson(ResponseModel(
+              success: false, message: "User registration failed.", data: null)));
     }
   }
 
@@ -141,6 +139,7 @@ class AuthHandler {
     return jwt.sign(SecretKey(secreteKey));
   }
 
+  //for send otp & save
   Future<Response> saveEmailOtp(SendOtpModel req) async {
     try {
       final otp = generateOTP();
@@ -177,9 +176,7 @@ class AuthHandler {
 
         if (receivedOtpCount > 3) {
           Future.delayed(Duration(minutes: 3),()async{
-            await connection.execute(
-                Sql.named("DELETE FROM email_otp WHERE email=@email"),
-                parameters: {"email": req.email.trim()});
+            deleteEmailOtp(req.email.trim());
           });
           return Response.badRequest(
               body: responseModelToJson(ResponseModel(
@@ -188,17 +185,6 @@ class AuthHandler {
                       "You are blocked for 3 minutes for sending OTP code.",
                   data: null)));
         }
-
-        /*final sendOtpTime =
-            DateTime.tryParse(checkEmailOtp.first[3].toString());
-        if (sendOtpTime != null &&
-            (sendOtpTime.difference(DateTime.now()).inMinutes < -3)) {
-          return Response.badRequest(
-              body: responseModelToJson(ResponseModel(
-                  success: false,
-                  message: "Your OTP code has expired.",
-                  data: null)));
-        }*/
 
         await connection.execute(
             Sql.named(
@@ -222,5 +208,51 @@ class AuthHandler {
               message: "Failed to send otp code.",
               data: null)));
     }
+  }
+
+  //for match otp
+  Future<Response> matchOtp({required String email,required String otp})async{
+    try{
+      final checkEmailOtp = await connection.execute(
+          Sql.named("SELECT * FROM email_otp WHERE email=@email"),
+          parameters: {"email": email});
+
+      final sendOtpTime =
+      DateTime.tryParse(checkEmailOtp.first[3].toString());
+      if (sendOtpTime != null &&
+          (sendOtpTime.difference(DateTime.now()).inMinutes < -3)) {
+        return Response.forbidden(
+            responseModelToJson(ResponseModel(
+                success: false,
+                message: "Your OTP code has expired.",
+                data: null)));
+      }
+
+      final storeOtp = checkEmailOtp.first[2].toString();
+      final myHashOtp = _hashString(otp);
+
+      if(storeOtp==myHashOtp){
+        deleteEmailOtp(email.trim());
+        return Response.ok(responseModelToJson(ResponseModel(
+            success: true, message: "Your OTP code has been matched.", data: null)));
+      }else{
+        return Response.ok(responseModelToJson(ResponseModel(
+            success: false, message: "OTP code does not match.", data: null)));
+      }
+
+    }catch(e){
+      logger.e("matchOtp e: $e");
+      return Response.internalServerError(
+          body: responseModelToJson(ResponseModel(
+              success: false,
+              message: "Failed to match otp code.",
+              data: null)));
+    }
+  }
+
+  Future<void> deleteEmailOtp(String email)async{
+    await connection.execute(
+        Sql.named("DELETE FROM email_otp WHERE email=@email"),
+        parameters: {"email": email});
   }
 }
