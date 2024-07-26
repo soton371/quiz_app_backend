@@ -13,6 +13,7 @@ class AuthRoute{
   Router get router => Router()
     ..post('/login', _authHandler.login)
     ..post('/send_otp', _authHandler.sendOtp)
+    ..post('/match_otp', _authHandler.matchOtp)
     ..post('/registration', _authHandler.register);
 }
 

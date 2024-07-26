@@ -9,6 +9,7 @@ class AuthMiddleware {
     return (request) {
       if (request.url != Uri.parse("auth/login") &&
           request.url != Uri.parse("auth/registration")&&
+          request.url != Uri.parse("auth/match_otp")&&
           request.url != Uri.parse("auth/send_otp")) {
         final token = _extractToken(request);
         if (token != null) {
