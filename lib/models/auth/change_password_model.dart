@@ -9,12 +9,12 @@ ChangePasswordModel changePasswordModelFromJson(String str) => ChangePasswordMod
 String changePasswordModelToJson(ChangePasswordModel data) => json.encode(data.toJson());
 
 class ChangePasswordModel {
-  final String? currentPassword;
-  final String? newPassword;
+  final String currentPassword;
+  final String newPassword;
 
   ChangePasswordModel({
-    this.currentPassword,
-    this.newPassword,
+    required this.currentPassword,
+    required this.newPassword,
   });
 
   factory ChangePasswordModel.fromJson(Map<String, dynamic> json) => ChangePasswordModel(

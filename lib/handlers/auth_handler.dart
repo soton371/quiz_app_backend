@@ -97,35 +97,47 @@ class AuthHandler {
     try {
       final req = userModelFromJson(await request.readAsString());
 
-      final matchOtpResponse = await matchOtpRegistration(email: req.email, otp: req.otp.toString());
-      final responseModel = responseModelFromJson(await matchOtpResponse.readAsString());
+      if (req.password.length < 6) {
+        return Response.badRequest(
+            body: responseModelToJson(ResponseModel(
+                success: false,
+                message: "Password length must be more than 6 digits.",
+                data: null)));
+      }
 
-      if(responseModel.success){
+      final matchOtpResponse =
+          await matchOtpRegistration(email: req.email, otp: req.otp.toString());
+      final responseModel =
+          responseModelFromJson(await matchOtpResponse.readAsString());
+
+      if (responseModel.success) {
         await connection.execute(
-          Sql.named(
-              "INSERT INTO users (full_name, email, password) VALUES (@full_name, @email, @password)"),
-          parameters: {
-            "full_name": req.fullName,
-            "email": req.email,
-            "password": _hashString(req.password)
-          });
+            Sql.named(
+                "INSERT INTO users (full_name, email, password) VALUES (@full_name, @email, @password)"),
+            parameters: {
+              "full_name": req.fullName,
+              "email": req.email,
+              "password": _hashString(req.password)
+            });
 
         Map<String, dynamic> data = {...req.toJson()};
         data.remove('password');
 
         final responseData = ResponseModel(
-            success: true, message: "User registration has been successful.", data: data);
+            success: true,
+            message: "User registration has been successful.",
+            data: data);
         return Response.ok(responseModelToJson(responseData));
-      }else{
+      } else {
         return Response.ok(responseModelToJson(responseModel));
       }
-
     } catch (e) {
       logger.e("register e: $e");
       return Response.internalServerError(
-        body:
-          responseModelToJson(ResponseModel(
-              success: false, message: "User registration failed.", data: null)));
+          body: responseModelToJson(ResponseModel(
+              success: false,
+              message: "User registration failed.",
+              data: null)));
     }
   }
 
@@ -173,9 +185,8 @@ class AuthHandler {
         int receivedOtpCount =
             (int.tryParse(checkEmailOtp.first[4].toString()) ?? 0) + 1;
 
-
         if (receivedOtpCount > 3) {
-          Future.delayed(Duration(minutes: 3),()async{
+          Future.delayed(Duration(minutes: 3), () async {
             deleteEmailOtp(req.email.trim());
           });
           return Response.badRequest(
@@ -210,28 +221,26 @@ class AuthHandler {
   }
 
   //for match otp
-  Future<Response> matchOtp(Request request)async{
-    try{
+  Future<Response> matchOtp(Request request) async {
+    try {
       final matchOtpModel = matchOtpModelFromJson(await request.readAsString());
       final checkEmailOtp = await connection.execute(
           Sql.named("SELECT * FROM email_otp WHERE email=@email"),
           parameters: {"email": matchOtpModel.email});
 
-      final sendOtpTime =
-      DateTime.tryParse(checkEmailOtp.first[3].toString());
+      final sendOtpTime = DateTime.tryParse(checkEmailOtp.first[3].toString());
       if (sendOtpTime != null &&
           (sendOtpTime.difference(DateTime.now()).inMinutes < -3)) {
-        return Response.forbidden(
-            responseModelToJson(ResponseModel(
-                success: false,
-                message: "Your OTP code has expired.",
-                data: null)));
+        return Response.forbidden(responseModelToJson(ResponseModel(
+            success: false,
+            message: "Your OTP code has expired.",
+            data: null)));
       }
 
       final storeOtp = checkEmailOtp.first[2].toString();
       final myHashOtp = _hashString(matchOtpModel.otp);
 
-      if(storeOtp==myHashOtp){
+      if (storeOtp == myHashOtp) {
         deleteEmailOtp(matchOtpModel.email.trim());
 
         final tokenMatchOtp = _generateToken({
@@ -240,15 +249,14 @@ class AuthHandler {
           "send_otp_time": sendOtpTime.toString()
         });
         return Response.ok(responseModelToJson(ResponseModel(
-            success: true, message: "Your OTP code has been matched.", data: {
-              "token": tokenMatchOtp
-        })));
-      }else{
+            success: true,
+            message: "Your OTP code has been matched.",
+            data: {"token": tokenMatchOtp})));
+      } else {
         return Response.ok(responseModelToJson(ResponseModel(
             success: false, message: "OTP code does not match.", data: null)));
       }
-
-    }catch(e,l){
+    } catch (e, l) {
       logger.e("matchOtp e: $e line: $l");
       return Response.internalServerError(
           body: responseModelToJson(ResponseModel(
@@ -259,43 +267,38 @@ class AuthHandler {
   }
 
   //for registration match otp
-  Future<Response> matchOtpRegistration({required String email,required String otp})async{
-    try{
+  Future<Response> matchOtpRegistration(
+      {required String email, required String otp}) async {
+    try {
       final checkEmailOtp = await connection.execute(
           Sql.named("SELECT * FROM email_otp WHERE email=@email"),
           parameters: {"email": email});
 
-      final sendOtpTime =
-      DateTime.tryParse(checkEmailOtp.first[3].toString());
+      final sendOtpTime = DateTime.tryParse(checkEmailOtp.first[3].toString());
       if (sendOtpTime != null &&
           (sendOtpTime.difference(DateTime.now()).inMinutes < -3)) {
-        return Response.forbidden(
-            responseModelToJson(ResponseModel(
-                success: false,
-                message: "Your OTP code has expired.",
-                data: null)));
+        return Response.forbidden(responseModelToJson(ResponseModel(
+            success: false,
+            message: "Your OTP code has expired.",
+            data: null)));
       }
 
       final storeOtp = checkEmailOtp.first[2].toString();
       final myHashOtp = _hashString(otp);
 
-      if(storeOtp==myHashOtp){
+      if (storeOtp == myHashOtp) {
         deleteEmailOtp(email.trim());
-        final tokenMatchOtp = _generateToken({
-          "email": email,
-          "otp": otp,
-          "send_otp_time": sendOtpTime
-        });
+        final tokenMatchOtp = _generateToken(
+            {"email": email, "otp": otp, "send_otp_time": sendOtpTime});
         return Response.ok(responseModelToJson(ResponseModel(
-            success: true, message: "Your OTP code has been matched.", data: {
-          "token": tokenMatchOtp
-        })));
-      }else{
+            success: true,
+            message: "Your OTP code has been matched.",
+            data: {"token": tokenMatchOtp})));
+      } else {
         return Response.ok(responseModelToJson(ResponseModel(
             success: false, message: "OTP code does not match.", data: null)));
       }
-
-    }catch(e){
+    } catch (e) {
       logger.e("matchOtp e: $e");
       return Response.internalServerError(
           body: responseModelToJson(ResponseModel(
@@ -305,25 +308,34 @@ class AuthHandler {
     }
   }
 
-  Future<void> deleteEmailOtp(String email)async{
+  Future<void> deleteEmailOtp(String email) async {
     await connection.execute(
         Sql.named("DELETE FROM email_otp WHERE email=@email"),
         parameters: {"email": email});
   }
 
-  Future<Response> resetPassword(Request request)async{
-    try{
-      final resetPasswordModel = resetPasswordModelFromJson(await request.readAsString());
+  Future<Response> resetPassword(Request request) async {
+    try {
+      final resetPasswordModel =
+          resetPasswordModelFromJson(await request.readAsString());
+
+      if (resetPasswordModel.password.length < 6) {
+        return Response.badRequest(
+            body: responseModelToJson(ResponseModel(
+                success: false,
+                message: "Password length must be more than 6 digits.",
+                data: null)));
+      }
+
       await connection.execute(
-          Sql.named(
-              "UPDATE users SET password=@password WHERE email=@email"),
+          Sql.named("UPDATE users SET password=@password WHERE email=@email"),
           parameters: {
             "email": resetPasswordModel.email,
             "password": _hashString(resetPasswordModel.password)
           });
       return Response.ok(responseModelToJson(ResponseModel(
           success: true, message: "Password successfully reset.", data: null)));
-    }catch(e){
+    } catch (e) {
       logger.e("resetPassword e: $e");
       return Response.internalServerError(
           body: responseModelToJson(ResponseModel(
@@ -333,18 +345,61 @@ class AuthHandler {
     }
   }
 
+  Future<Response> changePassword(Request request) async {
+    try {
+      final changePasswordModel =
+          changePasswordModelFromJson(await request.readAsString());
 
-  Future<Response> changePassword(Request request)async{
-    try{
+      if (changePasswordModel.currentPassword ==
+          changePasswordModel.newPassword) {
+        return Response.badRequest(
+            body: responseModelToJson(ResponseModel(
+                success: false,
+                message:
+                    "The current password and the new password are the same.",
+                data: null)));
+      }
+
+      if (changePasswordModel.newPassword.length < 6) {
+        return Response.badRequest(
+            body: responseModelToJson(ResponseModel(
+                success: false,
+                message: "Password length must be more than 6 digits.",
+                data: null)));
+      }
+
       final token = extractToken(request);
+      final decodedToken = JWT.decode(token!);
+      final userId = decodedToken.payload['user_id'];
 
-      final decodedToken = JWT.tryDecode(token);
+      final user = await connection.execute(
+          Sql.named(
+              "SELECT * FROM users WHERE user_id=@userId AND password=@currentPassword"),
+          parameters: {
+            "userId": userId.toString(),
+            "currentPassword": _hashString(changePasswordModel.currentPassword),
+          });
 
-      final changePasswordModel = changePasswordModelFromJson(await request.readAsString());
+      if (user.isEmpty) {
+        return Response.notFound(responseModelToJson(ResponseModel(
+            success: false,
+            message: "Failed to change password.",
+            data: null)));
+      }
+
+      await connection.execute(
+          Sql.named(
+              "UPDATE users SET password=@newPassword WHERE user_id=@userId"),
+          parameters: {
+            "userId": userId.toString(),
+            "newPassword": _hashString(changePasswordModel.newPassword)
+          });
 
       return Response.ok(responseModelToJson(ResponseModel(
-          success: true, message: "Password changed successfully.", data: null)));
-    }catch(e){
+          success: true,
+          message: "Password changed successfully.",
+          data: null)));
+    } catch (e) {
       logger.e("changePassword e: $e");
       return Response.internalServerError(
           body: responseModelToJson(ResponseModel(
