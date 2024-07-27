@@ -3,6 +3,7 @@ import 'package:shelf/shelf.dart';
 
 import '../configs/configs.dart';
 import '../models/models.dart';
+import '../utilities/utilities.dart';
 
 class AuthMiddleware {
   static Middleware checkAuthentication() => (innerHandler) {
@@ -11,7 +12,7 @@ class AuthMiddleware {
           request.url != Uri.parse("auth/registration")&&
           request.url != Uri.parse("auth/match_otp")&&
           request.url != Uri.parse("auth/send_otp")) {
-        final token = _extractToken(request);
+        final token = extractToken(request);
         if (token != null) {
           final verify = JWT.tryVerify(token, SecretKey(secreteKey));
           if (verify != null) {
@@ -28,12 +29,12 @@ class AuthMiddleware {
     };
   };
 
-  static String? _extractToken(Request request) {
-    final authorization = request.headers['Authorization'];
-    if (authorization != null && authorization.startsWith("Bearer ")) {
-      return authorization.substring(7);
-    } else {
-      return null;
-    }
-  }
+  // static String? _extractToken(Request request) {
+  //   final authorization = request.headers['Authorization'];
+  //   if (authorization != null && authorization.startsWith("Bearer ")) {
+  //     return authorization.substring(7);
+  //   } else {
+  //     return null;
+  //   }
+  // }
 }

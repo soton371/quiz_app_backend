@@ -27,9 +27,10 @@ class AuthHandler {
           });
 
       if (checkUser.isNotEmpty) {
-        Map<String, String> result = {
-          "full_name": checkUser.first[1].toString(),
-          "email": checkUser.first[2].toString()
+        Map<String, dynamic> result = {
+          "user_id": checkUser.first[0],
+          "full_name": checkUser.first[1],
+          "email": checkUser.first[2]
         };
 
         final token = _generateToken(result);
@@ -328,6 +329,27 @@ class AuthHandler {
           body: responseModelToJson(ResponseModel(
               success: false,
               message: "Failed to reset password.",
+              data: null)));
+    }
+  }
+
+
+  Future<Response> changePassword(Request request)async{
+    try{
+      final token = extractToken(request);
+
+      final decodedToken = JWT.tryDecode(token);
+
+      final changePasswordModel = changePasswordModelFromJson(await request.readAsString());
+
+      return Response.ok(responseModelToJson(ResponseModel(
+          success: true, message: "Password changed successfully.", data: null)));
+    }catch(e){
+      logger.e("changePassword e: $e");
+      return Response.internalServerError(
+          body: responseModelToJson(ResponseModel(
+              success: false,
+              message: "Failed to change password.",
               data: null)));
     }
   }
