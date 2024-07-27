@@ -209,7 +209,6 @@ class AuthHandler {
   }
 
   //for match otp
-  // Future<Response> matchOtp({required String email,required String otp})async{
   Future<Response> matchOtp(Request request)async{
     try{
       final matchOtpModel = matchOtpModelFromJson(await request.readAsString());
